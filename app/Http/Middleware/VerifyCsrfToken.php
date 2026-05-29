@@ -13,5 +13,6 @@ class VerifyCsrfToken extends Middleware
      */
     protected $except = [
         //
+        'api/*', // Cho phép tất cả các request API không cần check mã CSRF
     ];
 }
