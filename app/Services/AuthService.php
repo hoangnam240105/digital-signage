@@ -17,6 +17,8 @@ class AuthService
             return null;
         }
 
+        
+
         // Token cho Mobile App
         $token = $user->createToken('mobile-app')->plainTextToken;
 

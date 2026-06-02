@@ -2,24 +2,38 @@
 
 namespace App\Filament\Widgets;
 
+use App\Models\Device;
+use App\Models\Address;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
-use app\models\User;
+
 class DeviceTable extends BaseWidget
 {
+    protected static ?int $sort = 2;
     public function table(Table $table): Table
     {
         return $table
-            ->query(
-                // Tạm thời lấy bảng User để hiển thị dữ liệu mẫu
-                User::query() 
-            )
+            ->query(Device::query()->latest())
             ->columns([
-                // Định nghĩa các cột muốn hiện ra
-                Tables\Columns\TextColumn::make('name')->label('Tên thiết bị'),
-                Tables\Columns\TextColumn::make('email')->label('Địa điểm (Email)'),
-                Tables\Columns\TextColumn::make('created_at')->label('Ngày tạo')->dateTime(),
+            Tables\Columns\TextColumn::make('name')
+                ->label('Tên màn hình')
+                ->weight('bold'),
+                
+            Tables\Columns\TextColumn::make('name.Address')
+                ->sortable()
+                ->label('Vị trí'),
+
+            Tables\Columns\IconColumn::make('is_active')
+                ->label('Kết nối')
+                ->boolean()
+                ->trueColor('success')
+                ->falseColor('danger'),
+
+            Tables\Columns\TextColumn::make('updated_at')
+                ->label('Cập nhật cuối')
+                ->dateTime('H:i d/m')
+                ->description(fn (Device $record): string => $record->updated_at->diffForHumans()),
             ]);
     }
 }

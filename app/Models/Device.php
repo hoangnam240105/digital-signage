@@ -10,13 +10,18 @@ class Device extends Model
     use HasFactory;
     protected $fillable = [
         'name',
-        'location',
         'ip_address',
-        'is_active',
+        // 'device_code',
+        'is_active', // Thay cho status (trạng thái online/offline)
         'last_connected_at',
     ];
 
-    // Nếu bạn muốn Laravel tự động ép kiểu is_active về boolean
+    public function address()
+    {
+        return $this->belongsTo(Address::class);
+    }
+
+    // Ép kiểu is_active về boolean
     protected $casts = [
         'is_active' => 'boolean',
         'last_connected_at' => 'datetime',

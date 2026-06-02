@@ -7,6 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Address extends Model
 {
-    protected $fillable = ['name', 'description'];
     use HasFactory;
+    protected $fillable = ['name', 'description'];
+    public function devices()
+    {
+        return $this->hasMany(Device::class);
+    }
+    
 }
