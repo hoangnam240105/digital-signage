@@ -32,11 +32,11 @@ class MediaResource extends Resource
                         Forms\Components\FileUpload::make('file_path')
                             ->label('Chọn Video/Hình ảnh')
                             ->required()
-                            ->disk('public') // Lưu vào thư mục công khai để Mobile tải được
-                            ->directory('cms-media') // Tự tạo thư mục riêng cho gọn
+                            ->disk('public') 
+                            ->directory('cms-media') 
                             ->visibility('public')
-                            ->preserveFilenames() // Giữ tên file gốc cho dễ quản lý
-                            ->maxSize(102400), // Giới hạn 100MB (tùy bạn chỉnh)
+                            ->preserveFilenames() 
+                            ->maxSize(102400), 
 
                         Forms\Components\Select::make('file_type')
                             ->label('Định dạng')
@@ -50,23 +50,59 @@ class MediaResource extends Resource
     }
 
     public static function table(Table $table): Table
-    {
-        return $table
-            ->columns([
-                //
-            ])
-            ->filters([
-                //
-            ])
-            ->actions([
-                Tables\Actions\EditAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
-    }
+{
+    return $table
+        ->columns([
+            // 1. Cột Tên hiển thị
+            Tables\Columns\TextColumn::make('name')
+                ->label('Tên hiển thị')
+                ->searchable() 
+                ->sortable(), 
+
+            // 2. Cột Định dạng (Hiển thị dạng Badge cho đẹp)
+            Tables\Columns\TextColumn::make('file_type')
+                ->label('Định dạng')
+                ->badge()
+                ->color(fn (string $state): string => match ($state) {
+                    'image' => 'success', 
+                    'video' => 'info',    
+                    'url'   => 'warning',
+                    'music' => 'danger',  
+                    default => 'gray',
+                })
+                ->formatStateUsing(fn (string $state): string => match ($state) {
+                    'image' => 'Hình ảnh',
+                    'video' => 'Video',
+                    'url'   => 'Link Web',
+                    default => $state,
+                }),
+
+            // 3. Cột Đường dẫn file / URL
+            Tables\Columns\TextColumn::make('file_path')
+                ->label('Đường dẫn / Tệp')
+                ->limit(40)
+                ->copyable()
+                ->copyMessage('Đã copy đường dẫn'),
+
+            // 4. Cột Ngày tạo
+            Tables\Columns\TextColumn::make('created_at')
+                ->label('Ngày tạo')
+                ->dateTime('d/m/Y H:i')
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: false), // Cho phép ẩn/hiện cột
+        ])
+        ->filters([
+            //
+        ])
+        ->actions([
+            Tables\Actions\EditAction::make(),
+        ])
+        ->bulkActions([
+            Tables\Actions\BulkActionGroup::make([
+                Tables\Actions\DeleteBulkAction::make(),
+            ]),
+        ]);
+}
 
     public static function getRelations(): array
     {
