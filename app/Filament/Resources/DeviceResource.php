@@ -31,6 +31,7 @@ class DeviceResource extends Resource
                 Section::make('Thông tin thiết bị')
                     ->description('Nhập các thông số cơ bản của Android Box/TV')
                     ->schema([
+                        
                         TextInput::make('name')
                             ->label('Tên thiết bị')
                             ->required()
@@ -57,53 +58,61 @@ class DeviceResource extends Resource
             ]);
     }
 
-    public static function table(Table $table): Table
+  public static function table(Table $table): Table
     {
-        return $table
+       return $table
             ->columns([
-                TextColumn::make('name')
-                    ->label('Tên')
-                    ->searchable() // Cho phép tìm kiếm theo tên
-                    ->sortable(),
-
-                TextColumn::make('location')
-                    ->label('Vị trí')
-                    ->badge() // Hiện dạng nhãn cho đẹp
-                    ->color('info'),
-
-                TextColumn::make('ip_address')
-                    ->label('Địa chỉ IP'),
-
-                IconColumn::make('is_active')
-                    ->label('Online')
-                    ->boolean() // Hiện dấu tích xanh/đỏ
-                    ->sortable(),
-
-                TextColumn::make('last_connected_at')
-                    ->label('Kết nối cuối')
-                    ->dateTime('H:i d/m/Y') // Định dạng ngày giờ Việt Nam
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('id')->label('ID'),
+                Tables\Columns\TextColumn::make('name')->label('Thiết bị')->searchable(),
+                Tables\Columns\TextColumn::make('device_code')->label('Mã')->searchable(),
+                Tables\Columns\TextColumn::make('address.name')->label('Địa điểm')->default('-'),
+                Tables\Columns\TextColumn::make('ip_address')->label('Địa chỉ IP'),
+                
+                // Trạng thái dùng dấu chấm tròn (giống ảnh của em)
+                Tables\Columns\IconColumn::make('status')
+                    ->label('Trạng thái')
+                    ->icon('heroicon-s-circle')
+                    ->color(fn (string $state): string => match ($state) {
+                        'online' => 'success', // Chấm xanh
+                        'offline' => 'danger', // Chấm đỏ
+                        default => 'warning',
+                    }),
+                    
+                Tables\Columns\TextColumn::make('created_at')->label('Ngày tạo')->date('d/m/Y'),
             ])
             ->filters([
-                // 1. Bộ lọc đúng/sai (Online/Offline)
-                TernaryFilter::make('is_active')
-                    ->label('Trạng thái hoạt động')
-                    ->placeholder('Tất cả thiết bị')
-                    ->trueLabel('Chỉ thiết bị Online')
-                    ->falseLabel('Chỉ thiết bị Offline'),
-
-                // 2. Bộ lọc theo vị trí (Lấy danh sách vị trí đang có trong DB)
-                SelectFilter::make('location')
-                    ->label('Lọc theo vị trí')
-                    ->options([
-                        'Phòng khách' => 'Phòng khách',
-                        'Sảnh chính' => 'Sảnh chính',
-                        'Tầng 1' => 'Tầng 1',
-                    ])
-                    ->searchable(), // Cho phép gõ tìm kiếm trong danh sách lọc
+                // BỘ LỌC TÌM KIẾM (Giống ảnh 4)
+                Tables\Filters\SelectFilter::make('address_id')
+                    ->relationship('address', 'name')
+                    ->label('Địa điểm (Lọc)')
+                    ->searchable()
+                    ->preload(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\ActionGroup::make([
+                    
+                
+                    Tables\Actions\EditAction::make()
+                        ->label('Sửa')
+                        ->icon('heroicon-m-pencil-square')
+                        ->modalHeading('Sửa thông tin thiết bị')
+                        ->modalButton('LƯU'),
+
+                    
+                    Tables\Actions\ViewAction::make()
+                        ->label('Information')
+                        ->icon('heroicon-m-information-circle')
+                        ->modalHeading('Device Information'),
+
+                   
+                    Tables\Actions\DeleteAction::make()
+                        ->label('Xóa')
+                        ->icon('heroicon-m-trash')
+                        ->modalHeading('Bạn có chắc chắn muốn xóa mục này không?')
+                        ->modalDescription('Hành động này không thể hoàn tác.'),
+                ])
+                ->icon('heroicon-m-ellipsis-vertical') 
+                ->tooltip('Hành động')
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -123,8 +132,8 @@ class DeviceResource extends Resource
     {
         return [
             'index' => Pages\ListDevices::route('/'),
-            'create' => Pages\CreateDevice::route('/create'),
-            'edit' => Pages\EditDevice::route('/{record}/edit'),
+            // 'create' => Pages\CreateDevice::route('/create'),
+            // 'edit' => Pages\EditDevice::route('/{record}/edit'),
         ];
     }
 }
