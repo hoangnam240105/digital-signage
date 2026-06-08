@@ -14,7 +14,10 @@ return new class extends Migration
         Schema::create('devices', function (Blueprint $table) {
         $table->id();
         $table->string('name');
-        // $table->string('device_code')->unique();
+        $table->string('device_code')->unique();
+        $table->foreignId('address_id')->nullable()
+                  ->constrained('addresses')
+                  ->nullOnDelete();
         $table->string('ip_address')->nullable();
         $table->boolean('is_active')->default(false);
         $table->timestamp('last_connected_at')->nullable();
