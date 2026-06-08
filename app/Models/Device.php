@@ -10,8 +10,8 @@ class Device extends Model
     use HasFactory;
     protected $fillable = [
         'name',
+        'device_code',
         'ip_address',
-        // 'device_code',
         'is_active', // Thay cho status (trạng thái online/offline)
         'last_connected_at',
     ];

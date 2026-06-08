@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
 
         // 2. TẠO THIẾT BỊ
         Device::updateOrCreate(
-            // ['device_code' => 'DEV-L81-001'],
+            ['device_code' => 'DEV-L81-001'],
             [
                 'name' => 'Màn hình LED Sảnh Chính',
                 'ip_address' => '192.168.1.10',
@@ -32,7 +32,7 @@ class DatabaseSeeder extends Seeder
         );
 
         Device::updateOrCreate(
-            // ['device_code' => 'DEV-VC-002'],
+            ['device_code' => 'DEV-VC-002'],
             [
                 'name' => 'Màn hình Thang máy 01',
                 'ip_address' => '192.168.1.11',
