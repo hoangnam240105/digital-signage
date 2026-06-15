@@ -14,4 +14,8 @@ class Address extends Model
         return $this->hasMany(Device::class);
     }
     
+    public function schedules()
+    {
+        return $this->belongsToMany(Schedule::class, 'address_schedule', 'address_id', 'schedule_id');
+    }
 }

@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Services\AuthService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends BaseController
 { // Kế thừa BaseControlle
@@ -23,8 +26,8 @@ class AuthController extends BaseController
      * required=true,
      * @OA\JsonContent(
      * required={"email","password"},
-     * @OA\Property(property="email", type="string", format="email", example="admin@gmail.com"),
-     * @OA\Property(property="password", type="string", format="password", example="12345678")
+     * @OA\Property(property="email", type="string", format="email", example="VD:admin@gmail.com"),
+     * @OA\Property(property="password", type="string", format="password", example="VD:12345678")
      * ),
      * ),
      * @OA\Response(
@@ -41,14 +44,21 @@ class AuthController extends BaseController
 
     public function login(Request $request)
     {
-        // Gọi Service để check login
-        $result = $this->authService->checkLogin($request->email, $request->password);
+        // 1. Tìm User thật từ Database
+        $user = User::query()->where('email', $request->email)->first();
 
-        if (!$result) {
+        // 2. Kiểm tra password (nhớ thêm 'use Illuminate\Support\Facades\Hash;' ở đầu file)
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Sai tài khoản hoặc mật khẩu'], 401);
         }
 
-        return response()->json($result, 200);
+        // 3. TẠO TOKEN TỪ BIẾN $user (Biến này phải là Model User)
+        $token = $user->createToken('MobileApp')->plainTextToken;
+
+        // 4. Trả về kết quả
+        return response()->json([
+            'token' => $token,
+            'user' => $user
+        ], 200);
     }
 }
-

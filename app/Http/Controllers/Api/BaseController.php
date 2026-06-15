@@ -18,20 +18,19 @@ use OpenApi\Annotations as OA;
 
 class BaseController extends Controller
 {
-    public function sendResponse($result, $message)
-    {
-        return response()->json([
-            'success' => true,
-            'data'    => $result,
-            'message' => $message,
-        ], 200);
-    }
+    public function sendResponse($result, $message) {
+            return response()->json([
+                'success' => true,
+                'data'    => $result,
+                'message' => $message,
+            ], 200);
+        }
 
-    public function sendError($error, $errorMessages = [], $code = 404)
-    {
+    public function sendError($error, $errorMessages = [], $code = 404) {
         return response()->json([
             'success' => false,
             'message' => $error,
+            'errors'  => $errorMessages,
         ], $code);
     }
 }

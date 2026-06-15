@@ -20,7 +20,7 @@ class DeviceTable extends BaseWidget
                 ->label('Tên màn hình')
                 ->weight('bold'),
                 
-            Tables\Columns\TextColumn::make('name.Address')
+            Tables\Columns\TextColumn::make('Address.name')
                 ->sortable()
                 ->label('Vị trí'),
 

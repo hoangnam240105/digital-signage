@@ -24,7 +24,7 @@ class Schedule extends Model
     // Quan hệ với Media (Lịch trình này có những clip nào)
     public function media()
     {
-        return $this->belongsToMany(Media::class, 'schedule_media')
+        return $this->belongsToMany(Media::class, 'schedule_media', 'schedule_id', 'media_id')
             ->withPivot('zone_name', 'play_order', 'duration');
     }
     
