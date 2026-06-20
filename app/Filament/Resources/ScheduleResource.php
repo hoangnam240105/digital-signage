@@ -23,10 +23,51 @@ class ScheduleResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('media')
-                    ->multiple() // Cho chọn nhiều Video cùng lúc
-                    ->relationship('media', 'name') // Lấy từ bảng Media
-                    ->preload()
+                Forms\Components\Section::make('Thông tin lịch')
+                    ->schema([
+                        Forms\Components\TextInput::make('name')
+                            ->label('Tên lịch')
+                            ->required()
+                            ->maxLength(255),
+
+                        Forms\Components\DatePicker::make('start_date')
+                            ->label('Ngày bắt đầu')
+                            ->required(),
+
+                        Forms\Components\DatePicker::make('end_date')
+                            ->label('Ngày kết thúc')
+                            ->required(),
+
+                        Forms\Components\TimePicker::make('start_time')
+                            ->label('Giờ bắt đầu')
+                            ->required(),
+
+                        Forms\Components\TimePicker::make('end_time')
+                            ->label('Giờ kết thúc')
+                            ->required(),
+
+                        Forms\Components\CheckboxList::make('days_of_week')
+                            ->label('Ngày trong tuần')
+                            ->options([
+                                1 => 'Thứ 2',
+                                2 => 'Thứ 3',
+                                3 => 'Thứ 4',
+                                4 => 'Thứ 5',
+                                5 => 'Thứ 6',
+                                6 => 'Thứ 7',
+                                7 => 'Chủ nhật',
+                            ])
+                            ->columns(2),
+                    ])
+                    ->columns(2),
+
+                Forms\Components\Section::make('Media')
+                    ->schema([
+                        Forms\Components\Select::make('media')
+                            ->multiple()
+                            ->relationship('media', 'name')
+                            ->preload(),
+                    ]),
             ]);
     }
 
@@ -34,7 +75,33 @@ class ScheduleResource extends Resource
     {
         return $table
             ->columns([
-                //
+                Tables\Columns\TextColumn::make('name')
+                    ->label('Tên lịch')
+                    ->searchable()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('start_date')
+                    ->label('Ngày bắt đầu')
+                    ->date()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('end_date')
+                    ->label('Ngày kết thúc')
+                    ->date()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('start_time')
+                    ->label('Giờ bắt đầu')
+                    ->time(),
+
+                Tables\Columns\TextColumn::make('end_time')
+                    ->label('Giờ kết thúc')
+                    ->time(),
+
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Ngày tạo')
+                    ->dateTime('d/m/Y H:i')
+                    ->sortable(),
             ])
             ->filters([
                 //
