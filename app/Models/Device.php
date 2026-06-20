@@ -11,6 +11,7 @@ class Device extends Model
     protected $fillable = [
         'name',
         'device_code',
+        'address_id',
         'ip_address',
         'is_active', // Thay cho status (trạng thái online/offline)
         'last_connected_at',

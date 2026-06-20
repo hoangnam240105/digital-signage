@@ -16,6 +16,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\SelectFilter;
 class DeviceResource extends Resource
@@ -37,10 +38,12 @@ class DeviceResource extends Resource
                             ->required()
                             ->placeholder('Ví dụ: Box Tầng 1'),
 
-                        TextInput::make('location')
-                            ->label('Vị trí lắp đặt')
-                            ->required()
-                            ->placeholder('Ví dụ: Sảnh chính'),
+                        Select::make('address_id')
+                            ->label('Địa điểm')
+                            ->relationship('address', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->required(),
 
                         TextInput::make('ip_address')
                             ->label('Địa chỉ IP')
