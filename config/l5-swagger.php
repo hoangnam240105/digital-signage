@@ -170,11 +170,10 @@ return [
         */
         'securityDefinitions' => [
             'securitySchemes' => [
-                'sanctum' => [
+                'deviceToken' => [
                     'type' => 'http',
                     'scheme' => 'bearer',
-                    'bearerFormat' => 'JWT', // Định dạng mã Token
-                    'description' => 'Nhập Token của bạn vào đây. KHÔNG cần gõ chữ Bearer ở đầu.',
+                    'description' => 'Nhập chuỗi Device Token (64 ký tự) của Android Box vào đây',
             ], ],
             'security' => [
                 /*

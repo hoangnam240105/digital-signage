@@ -9,32 +9,275 @@
         "version": "1.0.0"
     },
     "paths": {
-        "/api/login": {
+        "/api/register-device": {
             "post": {
                 "tags": [
-                    "Authen"
+                    "REGISTER-DEVICE"
                 ],
-                "summary": "Đăng nhập dành cho Mobile App",
-                "operationId": "222b2625838e3c57e017987f73598fda",
+                "summary": "API Đăng ký Thiết bị mới đầy đủ thông tin (Từ Mobile/Box)",
+                "description": "Android Box gọi API này gửi thông tin lên để nằm trong danh sách chờ duyệt. Khi Admin duyệt trên Filament, gọi lại API này sẽ trả về Token.",
+                "operationId": "6caaa82eae107156379c6f8fcdbd43f2",
                 "requestBody": {
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "email",
-                                    "password"
+                                    "device_code",
+                                    "name"
                                 ],
                                 "properties": {
-                                    "email": {
+                                    "device_code": {
+                                        "description": "Mã phần cứng duy nhất (Mobile tự lấy ngầm)",
                                         "type": "string",
-                                        "format": "email",
-                                        "example": "admin@gmail.com"
+                                        "example": "BOX_8899_PRO"
                                     },
-                                    "password": {
+                                    "name": {
+                                        "description": "Tên gợi nhớ (Thợ lắp máy gõ vào ô Input)",
                                         "type": "string",
-                                        "format": "password",
-                                        "example": "12345678"
+                                        "example": "Màn hình LED Tầng 1"
+                                    },
+                                    "os_version": {
+                                        "description": "Phiên bản hệ điều hành của Box (Mobile tự lấy ngầm)",
+                                        "type": "string",
+                                        "example": "Android 11"
+                                    },
+                                    "app_version": {
+                                        "description": "Phiên bản của ứng dụng chạy trên Box (Mobile tự lấy ngầm)",
+                                        "type": "string",
+                                        "example": "v1.0.0"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Đăng ký thành công, đang chờ phê duyệt",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "pending"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Thiết bị đã gửi thông tin thành công, vui lòng chờ phê duyệt."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "Đã phê duyệt - Trả Token về cho Box tự động lưu",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "active"
+                                        },
+                                        "device_token": {
+                                            "type": "string",
+                                            "example": "chuoi_token_ngau_nhien_64_ky_tu..."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/server-time": {
+            "get": {
+                "tags": [
+                    "Box API"
+                ],
+                "summary": "API lấy thời gian hiện tại của Server",
+                "description": "Cung cấp mốc thời gian chuẩn của Server để Android Box đồng bộ đồng hồ, tránh lỗi lệch múi giờ.",
+                "operationId": "f34502fe043410f9be4a5fa73697e428",
+                "responses": {
+                    "200": {
+                        "description": "Lấy thời gian thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "timezone": {
+                                            "type": "string",
+                                            "example": "Asia/Ho_Chi_Minh"
+                                        },
+                                        "server_time": {
+                                            "type": "string",
+                                            "example": "2026-06-15 03:15:00"
+                                        },
+                                        "timestamp": {
+                                            "type": "integer",
+                                            "example": 1781512500
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
+        "/api/check-status": {
+            "post": {
+                "tags": [
+                    "Box API"
+                ],
+                "summary": "API Check trạng thái Box (Heartbeat)",
+                "description": "Cục Box gọi API này định kỳ để báo danh và cập nhật thời gian hoạt động gần nhất (last_connected_at) lên hệ thống.",
+                "operationId": "49e788ea688fb2e4f9148de88d19ecab",
+                "responses": {
+                    "200": {
+                        "description": "Cập nhật trạng thái thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Cập nhật trạng thái thiết bị thành công."
+                                        },
+                                        "device_name": {
+                                            "type": "string",
+                                            "example": "Màn hình LED Sảnh Chính"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Chưa xác thực hoặc Token sai"
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
+        "/api/schedule": {
+            "get": {
+                "tags": [
+                    "Box API"
+                ],
+                "summary": "API Lấy lịch phát quảng cáo cho Thiết bị",
+                "description": "Tự động nhận diện thiết bị qua Token để trả về danh sách các file hình ảnh/video quảng cáo tương ứng với Vị trí lắp đặt.",
+                "operationId": "2aa4cd4b3ac1c3e59535387e708569c3",
+                "responses": {
+                    "200": {
+                        "description": "Lấy lịch trình thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "device_name": {
+                                            "type": "string",
+                                            "example": "Màn hình LED Sảnh Chính"
+                                        },
+                                        "playlist": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "media_id": {
+                                                        "type": "integer",
+                                                        "example": 9
+                                                    },
+                                                    "title": {
+                                                        "type": "string",
+                                                        "example": "Video Quảng Cáo Trà Sữa"
+                                                    },
+                                                    "file_url": {
+                                                        "type": "string",
+                                                        "example": "https://ten-mien.com/storage/media/video1.mp4"
+                                                    },
+                                                    "type": {
+                                                        "type": "string",
+                                                        "example": "video"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Thiết bị hoạt động nhưng chưa được gán vị trí lắp đặt trên Filament"
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
+        "/api/log-media": {
+            "post": {
+                "tags": [
+                    "Box API"
+                ],
+                "summary": "API Cập nhật lượt phát của tệp quảng cáo",
+                "description": "Ghi nhận Android Box đã phát xong một tệp tin quảng cáo thành công phục vụ việc làm báo cáo.",
+                "operationId": "23b65bb66a56a6027397ee69600747a9",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "media_id",
+                                    "played_at"
+                                ],
+                                "properties": {
+                                    "media_id": {
+                                        "description": "ID của file media vừa phát xong",
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "played_at": {
+                                        "description": "Định dạng: Y-m-d H:i:s",
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2026-06-15 02:45:00"
                                     }
                                 },
                                 "type": "object"
@@ -44,24 +287,105 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Đăng nhập thành công",
+                        "description": "Đã ghi log thành công",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Đã cập nhật log lượt chiếu quảng cáo thành công."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Sai tài khoản hoặc mật khẩu"
+                    "422": {
+                        "description": "Dữ liệu gửi lên sai định dạng"
                     }
-                }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
+        "/api/info": {
+            "get": {
+                "tags": [
+                    "Box API"
+                ],
+                "summary": "API Lấy thông tin cấu hình hệ thống của Box",
+                "description": "Box gọi API này khi vừa khởi động để lấy thông tin định danh và tham số vận hành từ Server.",
+                "operationId": "cd549b6a701f5c2f52763fea511a8d5c",
+                "responses": {
+                    "200": {
+                        "description": "Lấy thông tin thành công"
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
+            }
+        },
+        "/api/download-media/{id}": {
+            "get": {
+                "tags": [
+                    "Box API"
+                ],
+                "summary": "API Stream/Tải tệp tin media",
+                "description": "Hỗ trợ trả về tệp tin vật lý dưới dạng luồng bytes giúp thiết bị tua và tải video mượt mà.",
+                "operationId": "a2d8b8cc1fe5359fbe79334b5e818149",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID của file media",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Trả về luồng dữ liệu file"
+                    }
+                },
+                "security": [
+                    {
+                        "deviceToken": []
+                    }
+                ]
             }
         }
     },
     "tags": [
         {
-            "name": "Authen",
-            "description": "Authen"
+            "name": "REGISTER-DEVICE",
+            "description": "REGISTER-DEVICE"
+        },
+        {
+            "name": "Box API",
+            "description": "Box API"
         }
-    ]
+    ],
+    "components": {
+        "securitySchemes": {
+            "deviceToken": {
+                "type": "http",
+                "scheme": "bearer",
+                "description": "Nhập chuỗi Device Token (64 ký tự) của Android Box vào đây"
+            }
+        }
+    }
 }

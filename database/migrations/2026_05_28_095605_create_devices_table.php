@@ -12,16 +12,21 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('devices', function (Blueprint $table) {
-        $table->id();
-        $table->string('name');
-        $table->string('device_code')->unique();
-        $table->foreignId('address_id')->nullable()
-                  ->constrained('addresses')
-                  ->nullOnDelete();
-        $table->string('ip_address')->nullable();
-        $table->boolean('is_active')->default(false);
-        $table->timestamp('last_connected_at')->nullable();
-        $table->timestamps();
+            $table->id();
+            $table->string('name');
+            $table->string('device_code')->unique();
+            $table->foreignId('address_id')->nullable()
+                ->constrained('addresses')
+                ->nullOnDelete();
+            $table->string('ip_address')->nullable();
+            $table->timestamp('last_connected_at')->nullable();
+            $table->string('pairing_code', 6)->nullable()->unique();
+            $table->timestamp('pairing_expires_at')->nullable();
+            $table->string('device_token', 64)->nullable()->unique();
+            $table->string('status')->default('pending'); // Mặc định chờ duyệt
+
+
+            $table->timestamps();
         });
     }
 

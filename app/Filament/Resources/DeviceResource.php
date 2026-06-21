@@ -3,137 +3,201 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\DeviceResource\Pages;
-use App\Filament\Resources\DeviceResource\RelationManagers;
 use App\Models\Device;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\IconColumn;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\DateTimePicker;
-use Filament\Tables\Filters\TernaryFilter;
-use Filament\Tables\Filters\SelectFilter;
+use Filament\Notifications\Notification;
+use Illuminate\Support\Str;
+
 class DeviceResource extends Resource
 {
     protected static ?string $model = Device::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-cpu-chip';
+
+    protected static ?string $navigationLabel = 'Quản lý Android Box';
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Section::make('Thông tin thiết bị')
-                    ->description('Nhập các thông số cơ bản của Android Box/TV')
+                Forms\Components\Section::make('Thông tin quyền Admin')
+                    ->description('Admin được phép thay đổi tên gọi nhớ và vị trí lắp đặt của Android Box này.')
                     ->schema([
-                        
-                        TextInput::make('name')
-                            ->label('Tên thiết bị')
+                        Forms\Components\TextInput::make('name')
+                            ->label('Tên gợi nhớ của Box')
                             ->required()
-                            ->placeholder('Ví dụ: Box Tầng 1'),
+                            ->maxLength(255),
 
-                        TextInput::make('location')
+                        Forms\Components\Select::make('address_id')
                             ->label('Vị trí lắp đặt')
-                            ->required()
-                            ->placeholder('Ví dụ: Sảnh chính'),
+                            ->relationship('address', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->nullable(),
+                    ])->columns(2),
 
-                        TextInput::make('ip_address')
-                            ->label('Địa chỉ IP')
-                            ->ipv4() // Kiểm tra định dạng IP chuẩn
-                            ->placeholder('192.168.1.10'),
+                Forms\Components\Section::make('Thông tin kỹ thuật (Hệ thống tự quản lý)')
+                    ->description('Các thông tin định danh và kết nối do thiết bị tự động đồng bộ về.')
+                    ->schema([
+                        Forms\Components\TextInput::make('device_code')
+                            ->label('Mã định danh Box (Device Code)')
+                            ->disabled(),
 
-                        Toggle::make('is_active')
-                            ->label('Trạng thái hoạt động')
-                            ->default(true),
+                        Forms\Components\TextInput::make('ip_address')
+                            ->label('Địa chỉ IP hiện tại')
+                            ->disabled(),
 
-                        DateTimePicker::make('last_connected_at')
-                            ->label('Lần cuối kết nối')
-                            ->disabled(), // Chỉ xem, không cho sửa bằng tay
-                    ])->columns(2) // Chia làm 2 cột
+                        Forms\Components\TextInput::make('status')
+                            ->label('Trạng thái phê duyệt')
+                            ->disabled(),
+
+                        Forms\Components\DateTimePicker::make('last_connected_at')
+                            ->label('Thời gian tương tác cuối')
+                            ->disabled(),
+                    ])->columns(2),
+
+                Forms\Components\Section::make('Thông tin Bảo mật & Pairing')
+                    ->description('Mã bảo mật dùng để xác thực quyền truy cập API của Android Box.')
+                    ->schema([
+                        Forms\Components\TextInput::make('pairing_code')
+                            ->label('Mã kết nối (Pairing Code)')
+                            ->disabled(),
+
+                        Forms\Components\DateTimePicker::make('pairing_expires_at')
+                            ->label('Thời gian hết hạn mã Pairing')
+                            ->disabled(),
+
+                        Forms\Components\TextInput::make('device_token')
+                            ->label('Mã Token xác thực (Device Token)')
+                            ->password()
+                            ->revealable()
+                            ->disabled(),
+                    ])->columns(3),
             ]);
     }
 
-  public static function table(Table $table): Table
+    public static function table(Table $table): Table
     {
-       return $table
+        return $table
             ->columns([
-                Tables\Columns\TextColumn::make('id')->label('ID'),
-                Tables\Columns\TextColumn::make('name')->label('Thiết bị')->searchable(),
-                Tables\Columns\TextColumn::make('device_code')->label('Mã')->searchable(),
-                Tables\Columns\TextColumn::make('address.name')->label('Địa điểm')->default('-'),
-                Tables\Columns\TextColumn::make('ip_address')->label('Địa chỉ IP'),
-                
-                // Trạng thái dùng dấu chấm tròn (giống ảnh của em)
-                Tables\Columns\IconColumn::make('status')
+                Tables\Columns\TextColumn::make('id')
+                    ->label('ID')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('name')
+                    ->label('Tên Box')
+                    ->searchable()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('device_code')
+                    ->label('Mã định danh Box')
+                    ->searchable(),
+
+                Tables\Columns\TextColumn::make('ip_address')
+                    ->label('Địa chỉ IP')
+                    ->default('N/A'),
+
+                Tables\Columns\TextColumn::make('status')
                     ->label('Trạng thái')
-                    ->icon('heroicon-s-circle')
-                    ->color(fn (string $state): string => match ($state) {
-                        'online' => 'success', // Chấm xanh
-                        'offline' => 'danger', // Chấm đỏ
-                        default => 'warning',
+                    ->badge()
+                    ->color(fn(?string $state): string => match ($state) {
+                        'active' => 'success',
+                        'pending' => 'warning',
+                        default => 'gray',
                     }),
-                    
-                Tables\Columns\TextColumn::make('created_at')->label('Ngày tạo')->date('d/m/Y'),
+
+                // CỘT KIỂM TRA ONLINE / OFFLINE THỜI GIAN THỰC
+                Tables\Columns\TextColumn::make('online_status')
+                    ->label('Kết nối')
+                    ->badge()
+                    ->state(function (Device $record): string {
+                        if ($record->status !== 'active') {
+                            return 'Chưa kích hoạt';
+                        }
+                        if ($record->last_connected_at && $record->last_connected_at->diffInMinutes(now()) <= 5) {
+                            return 'Online';
+                        }
+                        return 'Offline';
+                    })
+                    ->color(fn(string $state): string => match ($state) {
+                        'Online' => 'success',
+                        'Offline' => 'danger',
+                        default => 'gray',
+                    }),
+
+                Tables\Columns\TextColumn::make('address.name')
+                    ->label('Vị trí đặt Box')
+                    ->default('Chưa gán')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('pairing_code')
+                    ->label('Mã Pairing')
+                    ->badge()
+                    ->color('warning')
+                    ->placeholder('Đã kết nối'),
             ])
             ->filters([
-                // BỘ LỌC TÌM KIẾM (Giống ảnh 4)
+                Tables\Filters\SelectFilter::make('status')
+                    ->label('Trạng thái phê duyệt')
+                    ->options([
+                        'pending' => 'Chờ duyệt',
+                        'active' => 'Đang hoạt động',
+                    ]),
+
+                // BỘ LỌC THEO VỊ TRÍ LẮP ĐẶT
                 Tables\Filters\SelectFilter::make('address_id')
+                    ->label('Lọc theo vị trí')
                     ->relationship('address', 'name')
-                    ->label('Địa điểm (Lọc)')
                     ->searchable()
                     ->preload(),
             ])
             ->actions([
-                Tables\Actions\ActionGroup::make([
-                    
-                
-                    Tables\Actions\EditAction::make()
-                        ->label('Sửa')
-                        ->icon('heroicon-m-pencil-square')
-                        ->modalHeading('Sửa thông tin thiết bị')
-                        ->modalButton('LƯU'),
+                Tables\Actions\Action::make('activate')
+                    ->label('Duyệt kết nối')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn(Device $record) => $record->status === 'pending')
+                    ->form([
+                        Forms\Components\Select::make('address_id')
+                            ->label('Chọn vị trí lắp đặt cho Box này')
+                            ->relationship('address', 'name')
+                            ->required()
+                            ->searchable()
+                            ->preload(),
+                    ])
+                    ->action(function (Device $record, array $data): void {
+                        $randomToken = Str::random(64);
 
-                    
-                    Tables\Actions\ViewAction::make()
-                        ->label('Information')
-                        ->icon('heroicon-m-information-circle')
-                        ->modalHeading('Device Information'),
+                        $record->update([
+                            'status' => 'active',
+                            'address_id' => $data['address_id'],
+                            'device_token' => $randomToken,
+                            'pairing_code' => null,
+                            'pairing_expires_at' => null,
+                        ]);
 
-                   
-                    Tables\Actions\DeleteAction::make()
-                        ->label('Xóa')
-                        ->icon('heroicon-m-trash')
-                        ->modalHeading('Bạn có chắc chắn muốn xóa mục này không?')
-                        ->modalDescription('Hành động này không thể hoàn tác.'),
-                ])
-                ->icon('heroicon-m-ellipsis-vertical') 
-                ->tooltip('Hành động')
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                        Notification::make()
+                            ->title('Kích hoạt Android Box thành công!')
+                            ->body("Đã cấp mã Token bảo mật cho thiết bị.")
+                            ->success()
+                            ->send();
+                    }), // Tự load lại bảng sau khi duyệt thành công
+
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ]);
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
     }
 
     public static function getPages(): array
     {
         return [
             'index' => Pages\ListDevices::route('/'),
-            // 'create' => Pages\CreateDevice::route('/create'),
-            // 'edit' => Pages\EditDevice::route('/{record}/edit'),
+            'create' => Pages\CreateDevice::route('/create'),
+            'edit' => Pages\EditDevice::route('/{record}/edit'),
         ];
     }
 }

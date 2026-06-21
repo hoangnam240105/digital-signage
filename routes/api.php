@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BoxController;
+use App\Http\Controllers\Api\DeviceApiController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -15,14 +16,13 @@ use App\Http\Controllers\Api\BoxController;
 |
 */
 
-Route::post('/login', [AuthController::class, 'login']);
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::post('/devices/register', [DeviceApiController::class, 'register']);
+Route::post('/devices/check-pairing', [DeviceApiController::class, 'checkPairing']);
+Route::post('/devices/ping', [DeviceApiController::class, 'ping']);
+Route::post('/register-device', [BoxController::class, 'registerDevice']);
 
-    Route::get('/user', function (Request $request) {
-        return $request->user(); // test
-    });
-
+Route::middleware('device.auth')->group(function () {
     Route::get('/info', [BoxController::class, 'getInfo']);
     Route::get('/schedule', [BoxController::class, 'getSchedule']);
     Route::get('/download-media', [BoxController::class, 'downloadMedia']);

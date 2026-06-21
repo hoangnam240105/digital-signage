@@ -8,22 +8,17 @@ use Illuminate\Database\Eloquent\Model;
 class Device extends Model
 {
     use HasFactory;
-    protected $fillable = [
-        'name',
-        'device_code',
-        'ip_address',
-        'is_active', // Thay cho status (trạng thái online/offline)
-        'last_connected_at',
-    ];
+    protected $guarded = [];
 
+    // Quan hệ: Một Box chỉ thuộc về một Địa chỉ/Vị trí
     public function address()
     {
-        return $this->belongsTo(Address::class);
+        return $this->belongsTo(Address::class, 'address_id');
     }
 
-    // Ép kiểu is_active về boolean
-    protected $casts = [
-        'is_active' => 'boolean',
-        'last_connected_at' => 'datetime',
-    ];
+    // Quan hệ: Một Box có nhiều lượt ghi log phát media (để sau này làm thống kê)
+    public function logs()
+    {
+        return $this->hasMany(MediaLog::class, 'device_id');
+    }
 }

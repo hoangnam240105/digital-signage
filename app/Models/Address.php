@@ -11,7 +11,7 @@ class Address extends Model
     protected $fillable = ['name', 'description'];
     public function devices()
     {
-        return $this->hasMany(Device::class);
+        return $this->hasMany(Device::class, 'address_id');
     }
     
     public function schedules()

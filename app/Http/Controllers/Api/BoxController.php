@@ -5,21 +5,98 @@ namespace App\Http\Controllers\Api;
 use Illuminate\Http\Request;
 use App\Models\Device;
 use App\Models\Media;
-use App\Models\User;
 use App\Models\Schedule;
 use App\Models\MediaLog;
 use Illuminate\Support\Facades\Validator;
-
 use App\Http\Controllers\Api\BaseController;
 
 class BoxController extends BaseController
 {
     /**
+     * @OA\Post(
+     * path="/api/register-device",
+     * summary="API Đăng ký Thiết bị mới đầy đủ thông tin (Từ Mobile/Box)",
+     * description="Android Box gọi API này gửi thông tin lên để nằm trong danh sách chờ duyệt. Khi Admin duyệt trên Filament, gọi lại API này sẽ trả về Token.",
+     * tags={"REGISTER-DEVICE"},
+     * @OA\RequestBody(
+     * required=true,
+     * @OA\JsonContent(
+     * required={"device_code", "name"},
+     * @OA\Property(property="device_code", type="string", example="BOX_8899_PRO", description="Mã phần cứng duy nhất (Mobile tự lấy ngầm)"),
+     * @OA\Property(property="name", type="string", example="Màn hình LED Tầng 1", description="Tên gợi nhớ (Thợ lắp máy gõ vào ô Input)"),
+     * @OA\Property(property="os_version", type="string", example="Android 11", description="Phiên bản hệ điều hành của Box (Mobile tự lấy ngầm)"),
+     * @OA\Property(property="app_version", type="string", example="v1.0.0", description="Phiên bản của ứng dụng chạy trên Box (Mobile tự lấy ngầm)")
+     * )
+     * ),
+     * @OA\Response(
+     * response=202,
+     * description="Đăng ký thành công, đang chờ phê duyệt",
+     * @OA\JsonContent(
+     * @OA\Property(property="status", type="string", example="pending"),
+     * @OA\Property(property="message", type="string", example="Thiết bị đã gửi thông tin thành công, vui lòng chờ phê duyệt.")
+     * )
+     * ),
+     * @OA\Response(
+     * response=200,
+     * description="Đã phê duyệt - Trả Token về cho Box tự động lưu",
+     * @OA\JsonContent(
+     * @OA\Property(property="status", type="string", example="active"),
+     * @OA\Property(property="device_token", type="string", example="chuoi_token_ngau_nhien_64_ky_tu...")
+     * )
+     * )
+     * )
+     */
+    public function registerDevice(Request $request)
+    {
+        $request->validate([
+            'device_code' => 'required|string',
+            'name' => 'required|string|max:255',
+        ]);
+
+        $device = Device::query()->where('device_code', $request->device_code)->first();
+
+        // 1. Nếu chưa có trong DB ➔ Tiến hành tạo mới ở trạng thái 'pending'
+        if (!$device) {
+            Device::create([
+                'device_code' => $request->device_code,
+                'name' => $request->name,
+                'status' => 'pending',
+                'ip_address' => $request->ip(),
+                'device_token' => null,
+            ]);
+
+            return response()->json([
+                'status' => 'pending',
+                'message' => 'Thiết bị đã gửi thông tin thành công, vui lòng chờ Admin phê duyệt.'
+            ], 202);
+        }
+
+        // 2. Nếu đã có và trạng thái VẪN ĐANG CHỜ DUYỆT
+        if ($device->status === 'pending') {
+            return response()->json([
+                'status' => 'pending',
+                'message' => 'Thông tin đã có trên hệ thống. Vui lòng đợi Admin bấm nút Duyệt trên Filament.'
+            ], 202);
+        }
+
+        // 3. Nếu Admin ĐÃ BẤM DUYỆT trên Filament thành công ➔ Nhả Token về để Mobile "đớp" và lưu lại
+        if ($device->status === 'active' && $device->device_token) {
+            return response()->json([
+                'status' => 'active',
+                'message' => 'Thiết bị đã được phê duyệt hoạt động!',
+                'device_token' => $device->device_token
+            ], 200);
+        }
+
+        return response()->json(['status' => 'error', 'message' => 'Trạng thái thiết bị không hợp lệ.'], 400);
+    }
+
+    /**
      * @OA\Get(
      * path="/api/server-time",
      * summary="API lấy thời gian hiện tại của Server",
-     * description="Cung cấp mốc thời gian chuẩn của Server để App Mobile đồng bộ đồng hồ, tránh lỗi lệch múi giờ dưới thiết bị.",
-     * security={{"sanctum": {}}}, 
+     * description="Cung cấp mốc thời gian chuẩn của Server để Android Box đồng bộ đồng hồ, tránh lỗi lệch múi giờ.",
+     * security={{"deviceToken": {}}}, 
      * tags={"Box API"},
      * @OA\Response(
      * response=200,
@@ -27,8 +104,8 @@ class BoxController extends BaseController
      * @OA\JsonContent(
      * @OA\Property(property="status", type="string", example="success"),
      * @OA\Property(property="timezone", type="string", example="Asia/Ho_Chi_Minh"),
-     * @OA\Property(property="server_time", type="string", example="2026-06-15 03:15:00", description="Định dạng chuẩn Y-m-d H:i:s"),
-     * @OA\Property(property="timestamp", type="integer", example=1781512500, description="Thời gian dạng số Unix Timestamp")
+     * @OA\Property(property="server_time", type="string", example="2026-06-15 03:15:00"),
+     * @OA\Property(property="timestamp", type="integer", example=1781512500)
      * )
      * )
      * )
@@ -37,26 +114,19 @@ class BoxController extends BaseController
     {
         return response()->json([
             'status' => 'success',
-            'timezone' => config('app.timezone'), // Trả về múi giờ (Ví dụ: Asia/Ho_Chi_Minh)
-            'server_time' => now()->toDateTimeString(), // Trả về dạng "2026-06-15 03:00:49"
-            'timestamp' => now()->timestamp // Trả về dạng số gốc (Milli-seconds) để Mobile dễ tính toán
+            'timezone' => config('app.timezone'),
+            'server_time' => now()->toDateTimeString(),
+            'timestamp' => now()->timestamp
         ], 200);
     }
+
     /**
      * @OA\Post(
      * path="/api/check-status",
-     * summary="API Check trạng thái Box",
-     * description="Cục Box gọi API này định kỳ để cập nhật thời gian hoạt động gần nhất (last_connected_at).",
-     * operationId="checkBoxStatus",
+     * summary="API Check trạng thái Box (Heartbeat)",
+     * description="Cục Box gọi API này định kỳ để báo danh và cập nhật thời gian hoạt động gần nhất (last_connected_at) lên hệ thống.",
      * tags={"Box API"},
-     * security={{"sanctum": {}}},
-     * @OA\RequestBody(
-     * required=true,
-     * @OA\JsonContent(
-     * required={"id_devices"},
-     * @OA\Property(property="box_id", type="integer", example=1, description="ID của cục Box (id trong bảng devices)")
-     * )
-     * ),
+     * security={{"deviceToken": {}}},
      * @OA\Response(
      * response=200,
      * description="Cập nhật trạng thái thành công",
@@ -66,35 +136,24 @@ class BoxController extends BaseController
      * @OA\Property(property="device_name", type="string", example="Màn hình LED Sảnh Chính")
      * )
      * ),
-     * @OA\Response(
-     * response=401,
-     * description="Lỗi Unauthenticated - Chưa đăng nhập hoặc Token sai"
-     * ),
-     * @OA\Response(
-     * response=422,
-     * description="Lỗi Validation - box_id không tồn tại trong hệ thống"
-     * )
+     * @OA\Response(response=401, description="Chưa xác thực hoặc Token sai")
      * )
      */
     public function checkStatus(Request $request)
     {
-        $request->validate([
-            'box_id' => 'required|integer|exists:devices,id',
-        ]);
+        // TỰ ĐỘNG lấy con Box đã được Middleware xác thực thông qua Token ghim vào request
+        $device = $request->attributes->get('current_device');
 
-        // 2. Tìm thiết bị tương ứng trong bảng devices
-        $device = Device::query()->find($request->box_id);
-
-        // 3. Cập nhật thời gian kết nối mới nhất vào cột 'last_connected_at'
+        // Cập nhật thời gian tương tác cuối cùng và địa chỉ IP (nếu có thay đổi)
         $device->update([
-            'last_connected_at' => now(), // Dùng hàm có sẵn của Laravel (đã nhận giờ VN)
+            'last_connected_at' => now(),
+            'ip_address' => $request->ip() // Tự lấy IP thực tế của Box gửi lên luôn
         ]);
 
-        // 4. Trả về phản hồi thành công cho Box
         return response()->json([
             'status' => 'success',
             'message' => 'Cập nhật trạng thái thiết bị thành công.',
-            'device_name' => $device->name // Trả thêm tên thiết bị nếu cần hiển thị dưới Box
+            'device_name' => $device->name
         ], 200);
     }
 
@@ -102,17 +161,9 @@ class BoxController extends BaseController
      * @OA\Get(
      * path="/api/schedule",
      * summary="API Lấy lịch phát quảng cáo cho Thiết bị",
-     * description="Cục Box gọi API này để lấy danh sách các file hình ảnh/video cần tải về và trình chiếu theo địa điểm của nó.",
-     * operationId="getDeviceSchedule",
+     * description="Tự động nhận diện thiết bị qua Token để trả về danh sách các file hình ảnh/video quảng cáo tương ứng với Vị trí lắp đặt.",
      * tags={"Box API"},
-     * security={{"sanctum": {}}},
-     * @OA\Parameter(
-     * name="box_id",
-     * in="query",
-     * required=true,
-     * description="ID của thiết bị (id trong bảng devices)",
-     * @OA\Schema(type="integer", example=1)
-     * ),
+     * security={{"deviceToken": {}}},
      * @OA\Response(
      * response=200,
      * description="Lấy lịch trình thành công",
@@ -122,26 +173,28 @@ class BoxController extends BaseController
      * @OA\Property(property="playlist", type="array", @OA\Items(
      * @OA\Property(property="media_id", type="integer", example=9),
      * @OA\Property(property="title", type="string", example="Video Quảng Cáo Trà Sữa"),
-     * @OA\Property(property="file_url", type="string", example="https://ten-mien-cua-ban.com/storage/media/video1.mp4"),
+     * @OA\Property(property="file_url", type="string", example="https://ten-mien.com/storage/media/video1.mp4"),
      * @OA\Property(property="type", type="string", example="video")
      * ))
      * )
      * ),
-     * @OA\Response(response=422, description="Lỗi dữ liệu đầu vào - box_id không hợp lệ")
+     * @OA\Response(response=400, description="Thiết bị hoạt động nhưng chưa được gán vị trí lắp đặt trên Filament")
      * )
      */
     public function getSchedule(Request $request)
     {
-        // 1. Validate kiểm tra xem box_id gửi lên có nằm trong bảng devices không
-        $request->validate([
-            'box_id' => 'required|integer|exists:devices,id',
-        ]);
+        $device = $request->attributes->get('current_device');
 
-        // 2. Tìm thiết bị kèm theo vị trí của nó (Eager Loading mối quan hệ sang bảng addresses và schedules)
-        // Lưu ý: Đoạn này giả định bạn đã cài đặt các hàm Relationship trong Model Device.
-        $device = Device::with(['address.schedules.media'])->find($request->box_id);
+        if (!$device->address_id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Thiết bị chưa được gán vị trí lắp đặt trên hệ thống.'
+            ], 400);
+        }
 
-        // 3. Gom và bóc tách dữ liệu từ các bảng trung gian để tạo ra một danh sách Playlist sạch
+        // Load mối quan hệ từ địa chỉ sang lịch trình và danh sách tệp tin quảng cáo
+        $device->load(['address.schedules.media']);
+
         $playlist = [];
 
         if ($device->address && $device->address->schedules) {
@@ -149,15 +202,15 @@ class BoxController extends BaseController
                 foreach ($schedule->media as $mediaItem) {
                     $playlist[] = [
                         'media_id' => $mediaItem->id,
-                        'title'    => $mediaItem->name, // Giả định cột tên file trong bảng media là name
-                        'file_url' => asset('storage/' . $mediaItem->url), // Đường dẫn để tải file công khai
+                        'title'    => $mediaItem->name,
+                        // Khớp chính xác trường file_path theo ảnh cấu trúc DB của bạn
+                        'file_url' => asset('storage/' . $mediaItem->file_path),
                         'type'     => $mediaItem->type, // video hoặc image
                     ];
                 }
             }
         }
 
-        // 4. Trả về định dạng JSON chuẩn cho cục Box đọc
         return response()->json([
             'status'      => 'success',
             'device_name' => $device->name,
@@ -169,16 +222,16 @@ class BoxController extends BaseController
     /**
      * @OA\Post(
      * path="/api/log-media",
-     * summary="API cập nhật log media",
-     * description="Ghi nhận Box đã phát xong một tệp tin quảng cáo/hình ảnh",
+     * summary="API Cập nhật lượt phát của tệp quảng cáo",
+     * description="Ghi nhận Android Box đã phát xong một tệp tin quảng cáo thành công phục vụ việc làm báo cáo.",
      * tags={"Box API"},
-     * security={{"sanctum": {}}},
+     * security={{"deviceToken": {}}},
      * @OA\RequestBody(
      * required=true,
      * @OA\JsonContent(
      * required={"media_id", "played_at"},
-     * @OA\Property(property="media_id", type="integer", example=1, description="ID của file media vừa phát xong (Lấy từ bảng media)"),
-     * @OA\Property(property="played_at", type="string", format="date-time", example="2026-06-15 02:45:00", description="Thời gian phát xong thực tế dưới Box (Định dạng: Y-m-d H:i:s)")
+     * @OA\Property(property="media_id", type="integer", example=1, description="ID của file media vừa phát xong"),
+     * @OA\Property(property="played_at", type="string", format="date-time", example="2026-06-15 02:45:00", description="Định dạng: Y-m-d H:i:s")
      * )
      * ),
      * @OA\Response(
@@ -189,23 +242,15 @@ class BoxController extends BaseController
      * @OA\Property(property="message", type="string", example="Đã cập nhật log lượt chiếu quảng cáo thành công.")
      * )
      * ),
-     * @OA\Response(
-     * response=422,
-     * description="Dữ liệu gửi lên không hợp lệ hoặc không tồn tại media_id"
-     * ),
-     * @OA\Response(
-     * response=401,
-     * description="Chưa đăng nhập / Token không hợp lệ"
-     * )
+     * @OA\Response(response=422, description="Dữ liệu gửi lên sai định dạng")
      * )
      */
     public function updateLogMedia(Request $request)
     {
-        // 1. Kiểm tra dữ liệu Mobile gửi lên
+        $device = $request->attributes->get('current_device');
+
         $validator = Validator::make($request->all(), [
-            // Bắt buộc phải có media_id và số ID này phải tồn tại trong cột id của bảng media
             'media_id'  => 'required|integer|exists:media,id',
-            // Bắt buộc đúng định dạng ngày giờ Năm-Tháng-Ngày Giờ:Phút:Giây
             'played_at' => 'required|date_format:Y-m-d H:i:s',
         ]);
 
@@ -218,9 +263,9 @@ class BoxController extends BaseController
         }
 
         try {
-            // 2. Lưu log vào database thông qua Model
             MediaLog::create([
-                'box_id'    => $request->user()->id, // Tự động lấy ID của Box đang đăng nhập qua Token Sanctum
+                // Đổi trường box_id ăn theo chính xác id của device được Middleware xác thực qua token
+                'device_id' => $device->id, // Thay bằng tên cột log của bạn (device_id hoặc box_id)
                 'media_id'  => $request->input('media_id'),
                 'played_at' => $request->input('played_at'),
             ]);
@@ -241,18 +286,10 @@ class BoxController extends BaseController
     /**
      * @OA\Get(
      * path="/api/info",
-     * summary="API Lấy thông tin và cấu hình hệ thống của Box",
-     * description="Box gọi API này khi vừa khởi động để lấy thông tin định danh và cấu hình vận hành từ Server.",
-     * operationId="getDeviceInfo",
+     * summary="API Lấy thông tin cấu hình hệ thống của Box",
+     * description="Box gọi API này khi vừa khởi động để lấy thông tin định danh và tham số vận hành từ Server.",
      * tags={"Box API"},
-     * security={{"sanctum": {}}},
-     * @OA\Parameter(
-     * name="box_id",
-     * in="query",
-     * required=true,
-     * description="ID của thiết bị",
-     * @OA\Schema(type="integer", example=1)
-     * ),
+     * security={{"deviceToken": {}}},
      * @OA\Response(
      * response=200,
      * description="Lấy thông tin thành công"
@@ -261,26 +298,24 @@ class BoxController extends BaseController
      */
     public function getInfo(Request $request)
     {
-        $request->validate([
-            'box_id' => 'required|integer|exists:devices,id',
-        ]);
+        $device = $request->attributes->get('current_device');
 
-        // Lấy thiết bị và địa chỉ liên kết
-        $device = Device::with('address')->find($request->box_id);
+        // Eager load bảng address liên kết
+        $device->load('address');
 
         return response()->json([
             'status' => 'success',
             'system_info' => [
                 'device_id'   => $device->id,
                 'device_name' => $device->name,
+                'device_code' => $device->device_code,
                 'ip_address'  => $device->ip_address,
-                'is_active'   => $device->is_active,
-                'location'    => $device->address ? $device->address->name : 'Chưa gán vị trí' // Giả định cột tên ở bảng address là name
+                'status'      => $device->status,
+                'location'    => $device->address ? $device->address->name : 'Chưa gán vị trí'
             ],
-            // Bạn có thể fix cứng một số cấu hình hệ thống ở đây nếu DB chưa có bảng config riêng
             'configurations' => [
-                'heartbeat_interval_seconds' => 60, // Bắt Box cứ 60s phải gọi API check-status 1 lần
-                'schedule_refresh_interval_minutes' => 30, // Cứ 30 phút phải gọi API lấy lịch 1 lần
+                'heartbeat_interval_seconds' => 60, // Bắt Box cứ 60s gọi check-status 1 lần
+                'schedule_refresh_interval_minutes' => 30, // Cứ 30p đồng bộ lại lịch 1 lần
             ]
         ], 200);
     }
@@ -289,9 +324,9 @@ class BoxController extends BaseController
      * @OA\Get(
      * path="/api/download-media/{id}",
      * tags={"Box API"},
-     * summary="API Download media",
-     * security={{"sanctum": {}}},
-     * description="Lấy đường dẫn tải tệp tin media cụ thể",
+     * summary="API Stream/Tải tệp tin media",
+     * security={{"deviceToken": {}}},
+     * description="Hỗ trợ trả về tệp tin vật lý dưới dạng luồng bytes giúp thiết bị tua và tải video mượt mà.",
      * @OA\Parameter(
      * name="id",
      * in="path",
@@ -299,26 +334,24 @@ class BoxController extends BaseController
      * description="ID của file media",
      * @OA\Schema(type="integer")
      * ),
-     * @OA\Response(response=200, description="Trả về link download")
+     * @OA\Response(response=200, description="Trả về luồng dữ liệu file")
      * )
      */
     public function downloadMedia($id)
     {
-        // Tìm file trong database
-        $media = Media::findOrFail($id);
+        $media = Media::query()->find($id);
 
         if (!$media) {
-            return response()->json(['message' => 'Không tìm thấy dữ liệu file này'], 404);
+            return response()->json(['message' => 'Không tìm thấy dữ liệu file này trên hệ thống.'], 404);
         }
 
-        // Đường dẫn đến file vật lý (ví dụ lưu trong thư mục public/uploads/)
         $filePath = storage_path('app/public/' . $media->file_path);
-        $mimeType = mime_content_type($filePath);
+
         if (file_exists($filePath)) {
-            // return response()->download($filePath);
-            return response()->download($filePath, $media->file_name ?? 'file_download.mp4', [
+            $mimeType = mime_content_type($filePath);
+            return response()->download($filePath, $media->name ?? 'file_download.mp4', [
                 'Content-Type' => $mimeType,
-                'Accept-Ranges' => 'bytes' // Giúp mobile có thể tua được video khi xem stream
+                'Accept-Ranges' => 'bytes' // CRITICAL: Cực kỳ quan trọng để trình phát video Android có thể đọc stream mượt
             ]);
         }
 
