@@ -27,7 +27,7 @@ class DeviceResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-cpu-chip';
 
-    protected static ?string $navigationLabel = 'Quản lý Android Box';
+    protected static ?string $navigationLabel = 'Android Box';
 
     public static function form(Form $form): Form
     {
@@ -69,23 +69,15 @@ class DeviceResource extends Resource
                             ->disabled(),
                     ])->columns(2),
 
-                Forms\Components\Section::make('Thông tin Bảo mật & Pairing')
+                Forms\Components\Section::make('Thông tin Bảo mật')
                     ->description('Mã bảo mật dùng để xác thực quyền truy cập API của Android Box.')
                     ->schema([
-                        Forms\Components\TextInput::make('pairing_code')
-                            ->label('Mã kết nối (Pairing Code)')
-                            ->disabled(),
-
-                        Forms\Components\DateTimePicker::make('pairing_expires_at')
-                            ->label('Thời gian hết hạn mã Pairing')
-                            ->disabled(),
-
                         Forms\Components\TextInput::make('device_token')
                             ->label('Mã Token xác thực (Device Token)')
                             ->password()
                             ->revealable()
                             ->disabled(),
-                    ])->columns(3),
+                    ])->columns(1),
             ]);
     }
 
@@ -143,8 +135,8 @@ class DeviceResource extends Resource
                     ->default('Chưa gán')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('pairing_code')
-                    ->label('Mã Pairing')
+                Tables\Columns\TextColumn::make('Token kết nối')
+                    ->label('Token kết nối')
                     ->badge()
                     ->color('warning')
                     ->placeholder('Đã kết nối'),
@@ -180,13 +172,10 @@ class DeviceResource extends Resource
                     ])
                     ->action(function (Device $record, array $data): void {
                         $randomToken = Str::random(64);
-
                         $record->update([
                             'status' => 'active',
                             'address_id' => $data['address_id'],
                             'device_token' => $randomToken,
-                            'pairing_code' => null,
-                            'pairing_expires_at' => null,
                         ]);
 
                         Notification::make()

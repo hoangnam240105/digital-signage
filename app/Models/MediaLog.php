@@ -13,9 +13,5 @@ class MediaLog extends Model
     protected $table = 'media_logs';
 
     // 2. Khai báo các cột được phép chèn dữ liệu nhanh (Mass Assignment)
-    protected $fillable = [
-        'box_id',
-        'media_id',
-        'played_at',
-    ];
+    protected $guarded = [];
 }

@@ -12,10 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('media_logs', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedBigInteger('box_id');
-            $table->unsignedBigInteger('media_id');
-            $table->dateTime('played_at');
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('device_id')->comment('ID của thiết bị/box phát');
+            $table->unsignedBigInteger('media_id')->comment('ID của file media/video');
+            $table->unsignedBigInteger('schedule_id')->nullable()->comment('ID của lịch trình chiếu');
+            $table->dateTime('played_at')->comment('Thời gian thực tế video phát xong');
             $table->timestamps();
         });
     }

@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('address_schedule', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('address_id')->constrained()->onDelete('cascade');
-            $table->foreignId('schedule_id')->constrained()->onDelete('cascade');
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('address_id')->index('address_schedule_address_id_foreign');
+            $table->unsignedBigInteger('schedule_id')->index('address_schedule_schedule_id_foreign');
         });
     }
 

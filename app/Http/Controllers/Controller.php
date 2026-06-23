@@ -16,6 +16,6 @@ class Controller extends BaseController
         $data = ['status' => 'active', 'message' => 'Hệ thống ổn định'];
 
         // Đừng chỉ return $data;
-        return response()->json($data); // Phải như thế này!
+        return response()->json($data);
     }
 }

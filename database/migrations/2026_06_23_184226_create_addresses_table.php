@@ -9,15 +9,15 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   public function up(): void
-{
-    Schema::create('addresses', function (Blueprint $table) {
-        $table->id();
-        $table->string('name'); // Tên khu vực (NOT NULL)
-        $table->text('description')->nullable(); // Mô tả (NULLABLE)
-        $table->timestamps(); // Tạo sẵn created_at và updated_at
-    });
-}
+    public function up(): void
+    {
+        Schema::create('addresses', function (Blueprint $table) {
+            $table->bigIncrements('id');
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

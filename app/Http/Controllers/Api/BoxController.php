@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use App\Models\Device;
 use App\Models\Media;
 use App\Models\Schedule;
@@ -159,127 +160,198 @@ class BoxController extends BaseController
 
     /**
      * @OA\Get(
-     * path="/api/schedule",
-     * summary="API Lấy lịch phát quảng cáo cho Thiết bị",
-     * description="Tự động nhận diện thiết bị qua Token để trả về danh sách các file hình ảnh/video quảng cáo tương ứng với Vị trí lắp đặt.",
+     * path="/api/get-schedule",
+     * summary="Lấy lịch trình cho thiết bị qua Device Token",
      * tags={"Box API"},
      * security={{"deviceToken": {}}},
      * @OA\Response(
      * response=200,
-     * description="Lấy lịch trình thành công",
-     * @OA\JsonContent(
-     * @OA\Property(property="status", type="string", example="success"),
-     * @OA\Property(property="device_name", type="string", example="Màn hình LED Sảnh Chính"),
-     * @OA\Property(property="playlist", type="array", @OA\Items(
-     * @OA\Property(property="media_id", type="integer", example=9),
-     * @OA\Property(property="title", type="string", example="Video Quảng Cáo Trà Sữa"),
-     * @OA\Property(property="file_url", type="string", example="https://ten-mien.com/storage/media/video1.mp4"),
-     * @OA\Property(property="type", type="string", example="video")
-     * ))
-     * )
+     * description="Thành công"
      * ),
-     * @OA\Response(response=400, description="Thiết bị hoạt động nhưng chưa được gán vị trí lắp đặt trên Filament")
+     * @OA\Response(response=401, description="Token không hợp lệ hoặc thiếu")
      * )
      */
     public function getSchedule(Request $request)
     {
-        $device = $request->attributes->get('current_device');
+        $deviceToken = $request->bearerToken() ?? $request->header('device_token');
 
-        if (!$device->address_id) {
+        if (!$deviceToken) {
             return response()->json([
-                'status' => 'error',
-                'message' => 'Thiết bị chưa được gán vị trí lắp đặt trên hệ thống.'
-            ], 400);
+                'success' => false,
+                'message' => 'Thiếu token xác thực!'
+            ], 401);
         }
 
-        // Load mối quan hệ từ địa chỉ sang lịch trình và danh sách tệp tin quảng cáo
-        $device->load(['address.schedules.media']);
+        $device = Device::with([
+            'address.schedules.media' // Kết bảng liên hoàn để lấy lịch trình và file
+        ])
+            ->where('device_token', $deviceToken)
+            ->first();
 
-        $playlist = [];
+        // 3. Kiểm tra nếu không tìm thấy thiết bị
+        if (!$device) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lỗi xác thực: Device Token không hợp lệ hoặc thiết bị chưa được duyệt.'
+            ], 401);
+        }
 
-        if ($device->address && $device->address->schedules) {
-            foreach ($device->address->schedules as $schedule) {
-                foreach ($schedule->media as $mediaItem) {
-                    $playlist[] = [
-                        'media_id' => $mediaItem->id,
-                        'title'    => $mediaItem->name,
-                        // Khớp chính xác trường file_path theo ảnh cấu trúc DB của bạn
-                        'file_url' => asset('storage/' . $mediaItem->file_path),
-                        'type'     => $mediaItem->type, // video hoặc image
-                    ];
-                }
+        // 4. Lấy lịch trình an toàn
+        $allSchedules = $device->address?->schedules ?? collect();
+
+        // 5. Dùng biến $activeSchedules đã lọc là chuẩn bài, không bị lỗi gạch đỏ nữa
+        $responseData = $allSchedules->map(function ($schedule) {
+            $daysArray = is_string($schedule->days_of_week) ? json_decode($schedule->days_of_week, true) : $schedule->days_of_week;
+
+            if (is_array($daysArray)) {
+                sort($daysArray);
             }
-        }
 
+            $currentPlaylist = DB::table('schedule_media')
+                ->join('media', 'schedule_media.media_id', '=', 'media.id')
+                ->where('schedule_media.schedule_id', $schedule->id) // Lọc chính xác theo ID lịch trình đang chạy
+                ->select(
+                    'media.id as media_id',
+                    'media.name as file_name',
+                    'schedule_media.zone_name',
+                    'schedule_media.play_order',
+                    'schedule_media.duration'
+                )
+                ->orderBy('schedule_media.zone_name')
+                ->orderBy('schedule_media.play_order')
+                ->get();
+
+            // Tự động thêm link tải (download_url) cho từng file trong danh sách này
+            foreach ($currentPlaylist as $item) {
+                $item->download_url = url("/api/download-media/{$item->media_id}");
+            }
+
+            // Trả về cấu hình đầy đủ thông tin cho Mobile
+            return [
+                'schedule_id'   => $schedule->id,
+                'schedule_name' => $schedule->name,
+                'total_files'   => $currentPlaylist->count(), // Đếm số file thực tế của lịch trình này
+                'playlist'      => $currentPlaylist,          // Trả về danh sách file sạch kèm cấu hình phát
+                'date_start'    => $schedule->start_date . ' - ' . $schedule->start_time,
+                'date_end'      => $schedule->end_date . ' - ' . $schedule->end_time,
+                'days_active'   => is_array($daysArray) ? implode(', ', $daysArray) : '',
+            ];
+        });
         return response()->json([
-            'status'      => 'success',
-            'device_name' => $device->name,
-            'playlist'    => $playlist
+            'success' => true,
+            'playlist' => $responseData // Biến chứa data sau khi map xong
         ], 200);
     }
 
-
     /**
      * @OA\Post(
-     * path="/api/log-media",
-     * summary="API Cập nhật lượt phát của tệp quảng cáo",
-     * description="Ghi nhận Android Box đã phát xong một tệp tin quảng cáo thành công phục vụ việc làm báo cáo.",
+     * path="/api/updateMediaLog",
+     * summary="Đồng bộ lịch sử phát (Logs) theo chùm Schedule",
      * tags={"Box API"},
      * security={{"deviceToken": {}}},
      * @OA\RequestBody(
      * required=true,
+     * description="Dữ liệu danh sách log đã gom nhóm gọn gàng theo Schedule ID",
      * @OA\JsonContent(
+     * required={"schedule_id", "logs"},
+     * @OA\Property(property="schedule_id", type="integer", example=2, description="ID của lịch trình đang phát"),
+     * @OA\Property(
+     * property="logs",
+     * type="array",
+     * description="Danh sách các file media đã phát xong",
+     * @OA\Items(
      * required={"media_id", "played_at"},
-     * @OA\Property(property="media_id", type="integer", example=1, description="ID của file media vừa phát xong"),
-     * @OA\Property(property="played_at", type="string", format="date-time", example="2026-06-15 02:45:00", description="Định dạng: Y-m-d H:i:s")
+     * @OA\Property(property="media_id", type="integer", example=12, description="ID của file media"),
+     * @OA\Property(property="played_at", type="string", format="date-time", example="2026-06-23 17:01:20", description="Thời gian phát xong (Định dạng chuẩn: Y-m-d H:i:s)")
+     * )
+     * )
      * )
      * ),
      * @OA\Response(
      * response=200,
-     * description="Đã ghi log thành công",
+     * description="Đồng bộ thành công dữ liệu sạch",
      * @OA\JsonContent(
-     * @OA\Property(property="status", type="string", example="success"),
-     * @OA\Property(property="message", type="string", example="Đã cập nhật log lượt chiếu quảng cáo thành công.")
+     * @OA\Property(property="success", type="boolean", example=true),
+     * @OA\Property(property="message", type="string", example="Hệ thống đã đồng bộ thành công 2 log hợp lệ!")
      * )
      * ),
-     * @OA\Response(response=422, description="Dữ liệu gửi lên sai định dạng")
+     * @OA\Response(response=422, description="Sai cấu trúc JSON hoặc sai định dạng thời gian"),
+     * @OA\Response(response=401, description="Token không hợp lệ hoặc thiếu token"),
+     * @OA\Response(response=400, description="Không có dòng log nào hợp lệ để lưu")
      * )
      */
-    public function updateLogMedia(Request $request)
+    public function updateMediaLog(Request $request)
     {
-        $device = $request->attributes->get('current_device');
+        // 1. Xác thực thiết bị qua Token như cũ
+        $deviceToken = $request->bearerToken() ?? $request->header('device_token');
+        if (!$deviceToken) {
+            return response()->json(['success' => false, 'message' => 'Thiếu token xác thực!'], 401);
+        }
 
+        $device = Device::where('device_token', $deviceToken)->first();
+        if (!$device) {
+            return response()->json(['success' => false, 'message' => 'Thiết bị không hợp lệ.'], 401);
+        }
+
+        // TẦNG 1: Validate cấu trúc JSON mới
         $validator = Validator::make($request->all(), [
-            'media_id'  => 'required|integer|exists:media,id',
-            'played_at' => 'required|date_format:Y-m-d H:i:s',
+            'schedule_id'       => 'required|integer',
+            'logs'              => 'required|array|min:1',
+            'logs.*.media_id'   => 'required|integer',
+            'logs.*.played_at'  => 'required|date_format:Y-m-d H:i:s',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
-                'status'  => 'error',
-                'message' => 'Dữ liệu gửi lên không hợp lệ.',
+                'success' => false,
+                'message' => 'Dữ liệu gửi lên sai cấu trúc hoặc sai định dạng thời gian.',
                 'errors'  => $validator->errors()
             ], 422);
         }
 
-        try {
-            MediaLog::create([
-                // Đổi trường box_id ăn theo chính xác id của device được Middleware xác thực qua token
-                'device_id' => $device->id, // Thay bằng tên cột log của bạn (device_id hoặc box_id)
-                'media_id'  => $request->input('media_id'),
-                'played_at' => $request->input('played_at'),
-            ]);
+        $scheduleId = $request->input('schedule_id');
+        $logs       = $request->input('logs');
+        $dataToInsert = [];
+
+        // TỐI ƯU HIỆU NĂNG: Chỉ bốc đúng các media_id hợp lệ THUỘC schedule_id này lên RAM (Quá nhanh!)
+        $validMediaIds = DB::table('schedule_media')
+            ->where('schedule_id', $scheduleId)
+            ->pluck('media_id')
+            ->toArray();
+
+        // TẦNG 2: Vòng lặp gom log sạch
+        foreach ($logs as $log) {
+            $mediaId = $log['media_id'];
+
+            // KIỂM TRA CHÉO: Nếu file media gửi lên không nằm trong lịch trình này -> BỎ QUA
+            if (!in_array($mediaId, $validMediaIds)) {
+                continue;
+            }
+
+            $dataToInsert[] = [
+                'device_id'   => $device->id,
+                'media_id'    => $mediaId,
+                'schedule_id' => $scheduleId,
+                'played_at'   => $log['played_at'],
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ];
+        }
+
+        // 4. Lưu một loạt xuống DB
+        if (count($dataToInsert) > 0) {
+            MediaLog::insert($dataToInsert);
 
             return response()->json([
-                'status'  => 'success',
-                'message' => 'Đã cập nhật log lượt chiếu quảng cáo thành công.'
+                'success' => true,
+                'message' => 'Hệ thống đã đồng bộ thành công ' . count($dataToInsert) . ' log hợp lệ!'
             ], 200);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Có lỗi xảy ra trên server: ' . $e->getMessage()
-            ], 500);
         }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Không có dữ liệu log nào khớp với lịch chiếu hiện tại để lưu.'
+        ], 400);
     }
 
 
@@ -309,6 +381,7 @@ class BoxController extends BaseController
                 'device_id'   => $device->id,
                 'device_name' => $device->name,
                 'device_code' => $device->device_code,
+
                 'ip_address'  => $device->ip_address,
                 'status'      => $device->status,
                 'location'    => $device->address ? $device->address->name : 'Chưa gán vị trí'

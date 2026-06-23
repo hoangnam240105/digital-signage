@@ -10,6 +10,13 @@ class Device extends Model
     use HasFactory;
     protected $guarded = [];
 
+    protected static ?string $recordTitleAttribute = 'name';
+    
+    protected $casts = [
+        'last_connected_at' => 'datetime',
+        'pairing_expires_at' => 'datetime',
+    ];
+
     // Quan hệ: Một Box chỉ thuộc về một Địa chỉ/Vị trí
     public function address()
     {

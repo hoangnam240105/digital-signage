@@ -12,11 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('media', function (Blueprint $table) {
-            $table->id();
+            $table->bigIncrements('id');
             $table->string('name');
-            $table->string('file_path'); // Đường dẫn file trên server
+            $table->string('file_path');
             $table->enum('file_type', ['image', 'video', 'url', 'music']);
-            $table->bigInteger('file_size')->nullable(); // Kích thước file (byte)
+            $table->bigInteger('file_size')->nullable();
             $table->timestamps();
         });
     }

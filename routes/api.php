@@ -2,7 +2,6 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BoxController;
 use App\Http\Controllers\Api\DeviceApiController;
 /*
@@ -24,9 +23,9 @@ Route::post('/register-device', [BoxController::class, 'registerDevice']);
 
 Route::middleware('device.auth')->group(function () {
     Route::get('/info', [BoxController::class, 'getInfo']);
-    Route::get('/schedule', [BoxController::class, 'getSchedule']);
+    Route::get('/get-schedule', [BoxController::class, 'getSchedule']);
     Route::get('/download-media', [BoxController::class, 'downloadMedia']);
-    Route::post('/log-media', [BoxController::class, 'updateLogMedia']);
+    Route::post('/updateMediaLog', [BoxController::class, 'updateMediaLog']);
     Route::get('/server-time', [BoxController::class, 'getServerTime']);
     Route::post('/check-status', [BoxController::class, 'checkStatus']);
     Route::get('/download-media/{id}', [BoxController::class, 'downloadMedia']);

@@ -186,61 +186,19 @@
                 ]
             }
         },
-        "/api/schedule": {
+        "/api/get-schedule": {
             "get": {
                 "tags": [
                     "Box API"
                 ],
-                "summary": "API Lấy lịch phát quảng cáo cho Thiết bị",
-                "description": "Tự động nhận diện thiết bị qua Token để trả về danh sách các file hình ảnh/video quảng cáo tương ứng với Vị trí lắp đặt.",
-                "operationId": "2aa4cd4b3ac1c3e59535387e708569c3",
+                "summary": "Lấy lịch trình cho thiết bị qua Device Token",
+                "operationId": "849cf2645b37362c21dabb7d1de91636",
                 "responses": {
                     "200": {
-                        "description": "Lấy lịch trình thành công",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "example": "success"
-                                        },
-                                        "device_name": {
-                                            "type": "string",
-                                            "example": "Màn hình LED Sảnh Chính"
-                                        },
-                                        "playlist": {
-                                            "type": "array",
-                                            "items": {
-                                                "properties": {
-                                                    "media_id": {
-                                                        "type": "integer",
-                                                        "example": 9
-                                                    },
-                                                    "title": {
-                                                        "type": "string",
-                                                        "example": "Video Quảng Cáo Trà Sữa"
-                                                    },
-                                                    "file_url": {
-                                                        "type": "string",
-                                                        "example": "https://ten-mien.com/storage/media/video1.mp4"
-                                                    },
-                                                    "type": {
-                                                        "type": "string",
-                                                        "example": "video"
-                                                    }
-                                                },
-                                                "type": "object"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Thành công"
                     },
-                    "400": {
-                        "description": "Thiết bị hoạt động nhưng chưa được gán vị trí lắp đặt trên Filament"
+                    "401": {
+                        "description": "Token không hợp lệ hoặc thiếu"
                     }
                 },
                 "security": [
@@ -250,34 +208,52 @@
                 ]
             }
         },
-        "/api/log-media": {
+        "/api/updateMediaLog": {
             "post": {
                 "tags": [
                     "Box API"
                 ],
-                "summary": "API Cập nhật lượt phát của tệp quảng cáo",
-                "description": "Ghi nhận Android Box đã phát xong một tệp tin quảng cáo thành công phục vụ việc làm báo cáo.",
-                "operationId": "23b65bb66a56a6027397ee69600747a9",
+                "summary": "Đồng bộ lịch sử phát (Logs) theo chùm Schedule",
+                "operationId": "0cb5c626c705b5f7c28bee968062f20e",
                 "requestBody": {
+                    "description": "Dữ liệu danh sách log đã gom nhóm gọn gàng theo Schedule ID",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "media_id",
-                                    "played_at"
+                                    "schedule_id",
+                                    "logs"
                                 ],
                                 "properties": {
-                                    "media_id": {
-                                        "description": "ID của file media vừa phát xong",
+                                    "schedule_id": {
+                                        "description": "ID của lịch trình đang phát",
                                         "type": "integer",
-                                        "example": 1
+                                        "example": 2
                                     },
-                                    "played_at": {
-                                        "description": "Định dạng: Y-m-d H:i:s",
-                                        "type": "string",
-                                        "format": "date-time",
-                                        "example": "2026-06-15 02:45:00"
+                                    "logs": {
+                                        "description": "Danh sách các file media đã phát xong",
+                                        "type": "array",
+                                        "items": {
+                                            "required": [
+                                                "media_id",
+                                                "played_at"
+                                            ],
+                                            "properties": {
+                                                "media_id": {
+                                                    "description": "ID của file media",
+                                                    "type": "integer",
+                                                    "example": 12
+                                                },
+                                                "played_at": {
+                                                    "description": "Thời gian phát xong (Định dạng chuẩn: Y-m-d H:i:s)",
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-06-23 17:01:20"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
                                     }
                                 },
                                 "type": "object"
@@ -287,18 +263,18 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Đã ghi log thành công",
+                        "description": "Đồng bộ thành công dữ liệu sạch",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
-                                        "status": {
-                                            "type": "string",
-                                            "example": "success"
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Đã cập nhật log lượt chiếu quảng cáo thành công."
+                                            "example": "Hệ thống đã đồng bộ thành công 2 log hợp lệ!"
                                         }
                                     },
                                     "type": "object"
@@ -307,7 +283,13 @@
                         }
                     },
                     "422": {
-                        "description": "Dữ liệu gửi lên sai định dạng"
+                        "description": "Sai cấu trúc JSON hoặc sai định dạng thời gian"
+                    },
+                    "401": {
+                        "description": "Token không hợp lệ hoặc thiếu token"
+                    },
+                    "400": {
+                        "description": "Không có dòng log nào hợp lệ để lưu"
                     }
                 },
                 "security": [
