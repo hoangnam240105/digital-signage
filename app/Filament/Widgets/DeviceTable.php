@@ -180,7 +180,7 @@ class DeviceTable extends BaseWidget
                         if ($record->status !== 'active') {
                             return 'Chưa kích hoạt';
                         }
-                        if ($record->last_connected_at && $record->last_connected_at->diffInMinutes(now()) <= 5) {
+                        if ($record->last_connected_at && $record->last_connected_at->diffInMinutes(now()) <= 11) {
                             return 'Online';
                         }
                         return 'Offline';

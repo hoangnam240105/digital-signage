@@ -148,7 +148,7 @@ class BoxController extends BaseController
         // Cập nhật thời gian tương tác cuối cùng và địa chỉ IP (nếu có thay đổi)
         $device->update([
             'last_connected_at' => now(),
-            'ip_address' => $request->ip() // Tự lấy IP thực tế của Box gửi lên luôn
+            'ip_address' => $request->ip() // Tự lấy IP thực tế của Box gửi lên
         ]);
 
         return response()->json([
