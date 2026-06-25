@@ -15,8 +15,8 @@ class ListAddresses extends ListRecords
         return [
             // Cấu hình nút tạo mới thành Popup Modal
             Actions\CreateAction::make()
-                ->label('Thêm địa điểm')
-                ->modalHeading('Tạo địa điểm mới')
+                ->label('New address')
+                ->modalHeading('Create New address')
                 ->modalWidth('md'),
         ];
     }
