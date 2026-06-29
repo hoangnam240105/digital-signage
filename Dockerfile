@@ -1,6 +1,6 @@
 FROM php:8.2-fpm-alpine
 
-# Cài đặt các thư viện hệ thống cần thiết
+# Cài đặt các thư viện hệ thống cần thiết (đã thêm icu-dev và libzip-dev)
 RUN apk add --no-cache \
     nginx \
     supervisor \
@@ -10,10 +10,12 @@ RUN apk add --no-cache \
     zip \
     unzip \
     git \
-    oniguruma-dev
+    oniguruma-dev \
+    icu-dev \
+    libzip-dev
 
-# Cài đặt các extension PHP cần thiết cho Laravel & Filament
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath xml gd
+# Cài đặt các extension PHP cần thiết cho Filament (đã thêm intl và zip)
+RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath xml gd intl zip
 
 # Cài đặt Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
