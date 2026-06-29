@@ -27,7 +27,7 @@ WORKDIR /var/www/html
 COPY . .
 
 # Cài đặt các thư viện PHP qua Composer
-RUN composer install --no-dev --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
 
 # Cấp quyền cho thư mục storage của Laravel
 RUN chmod -R 775 storage bootstrap/cache
