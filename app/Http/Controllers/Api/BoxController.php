@@ -414,6 +414,10 @@ class BoxController extends BaseController
     {
         $media = Media::query()->find($id);
 
+        if ($media->file_type === 'url') {
+            return redirect()->away($media->file_path);
+        }
+
         if (!$media) {
             return response()->json(['message' => 'Không tìm thấy dữ liệu file này trên hệ thống.'], 404);
         }

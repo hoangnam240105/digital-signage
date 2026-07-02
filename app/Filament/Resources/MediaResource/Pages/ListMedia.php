@@ -19,7 +19,6 @@ class ListMedia extends ListRecords
         ];
     }
 
-    // Thêm hàm để tạo các Tabs phân loại ở ngay trên bảng Table
     public function getTabs(): array
     {
         return [
@@ -36,9 +35,9 @@ class ListMedia extends ListRecords
             'url' => Tab::make('Link Web')
                 ->icon('heroicon-m-link')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('file_type', 'url')),
-            'music'=> Tab::make('Âm thanh')
+            'audio'=> Tab::make('Âm thanh')
                 ->icon('heroicon-m-musical-note')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('file_type', 'music')),
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('file_type', 'audio')),
         ];
     }
 }

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->bigIncrements('id');
             $table->string('name');
             $table->string('file_path');
-            $table->enum('file_type', ['image', 'video', 'url', 'music']);
+            $table->enum('file_type', ['image', 'video', 'url', 'audio']);
             $table->bigInteger('file_size')->nullable();
             $table->timestamps();
         });

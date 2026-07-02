@@ -13,7 +13,7 @@ class StatsOverview extends BaseWidget
     protected function getStats(): array
     {
         // 1. Đếm số lượng thiết bị
-        $disconnectTime = now()->subMinutes(5);
+        $disconnectTime = now()->subMinutes(11);
 
         // Tự động đếm dựa vào thời gian updated_at thật trong DB
         $onlineDevices = Device::where('updated_at', '>=', $disconnectTime)->count();
