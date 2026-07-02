@@ -415,7 +415,10 @@ class BoxController extends BaseController
         $media = Media::query()->find($id);
 
         if ($media->file_type === 'url') {
-            return redirect()->away($media->file_path);
+            return response()->json([
+                'message' => 'Redirect URL',
+                'url' => $media->file_path
+            ], 200);
         }
 
         if (!$media) {
@@ -428,7 +431,7 @@ class BoxController extends BaseController
             $mimeType = mime_content_type($filePath);
             return response()->download($filePath, $media->name ?? 'file_download.mp4', [
                 'Content-Type' => $mimeType,
-                'Accept-Ranges' => 'bytes' // CRITICAL: Cực kỳ quan trọng để trình phát video Android có thể đọc stream mượt
+                'Accept-Ranges' => 'bytes'
             ]);
         }
 
